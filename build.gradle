@@ -1,0 +1,80 @@
+buildscript {
+    repositories {
+        jcenter()
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+    dependencies {
+        classpath ("com.netflix.nebula:nebula-clojure-plugin:8.1.3") {
+            exclude group:"org.codehaus.groovy", module:"groovy"
+        }
+    }
+}
+
+apply plugin: 'nebula.clojure'
+
+group = 'org.nn'
+
+sourceSets {
+    main {
+        java {
+            srcDir 'src/main/clojure'
+        }
+        resources {
+            srcDir 'src/main/resources'
+        }
+    }
+    test {
+        java {
+            srcDir 'src/test/clojure'
+        }
+        resources {
+            srcDir 'src/test/resources'
+        }
+    }
+}
+
+clojureTest {
+    //classpath = sourceSets.test.runtimeClasspath
+    classpath += files(
+            sourceSets.main.resources.srcDirs,
+            sourceSets.test.resources.srcDirs
+    )
+    outputDir = sourceSets.main.output.classesDirs.files.find {
+        it.path.contains('clojure') || it.path.contains('java')
+    }
+}
+//compileClojure.dependsOn compileJava
+compileClojure {
+    warnOnReflection = true
+    aotCompile = true
+    destinationDir = sourceSets.main.output.classesDirs.files.find {
+        it.path.contains('clojure') || it.path.contains('java')
+    }
+}
+
+repositories {
+    jcenter()
+    mavenCentral()
+    maven { url 'https://clojars.org/repo' }
+}
+
+dependencies {
+    compile 'org.clojure:clojure:1.10.0'
+
+    compile 'net.mikera:core.matrix:0.62.0'
+    compile 'net.mikera:vectorz-clj:0.48.0'
+
+    compile 'org.clojure:test.check:0.9.0'
+}
+
+uploadArchives {
+    repositories {
+        mavenLocal()
+    }
+}
+
+wrapper {
+    gradleVersion = '5.3.1'
+}
