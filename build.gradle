@@ -1,3 +1,5 @@
+import com.virgo47.gradle.cpjar.util.ManifestUtil
+
 buildscript {
     repositories {
         jcenter()
@@ -6,13 +8,16 @@ buildscript {
         }
     }
     dependencies {
-        classpath ("com.netflix.nebula:nebula-clojure-plugin:8.1.3") {
+        classpath ("com.netflix.nebula:nebula-clojure-plugin:9.2.0") {
             exclude group:"org.codehaus.groovy", module:"groovy"
         }
+        classpath 'com.github.ben-manes:gradle-versions-plugin:0.27.0'
+        classpath "gradle.plugin.com.virgo47.gradle:ClasspathJar:1.0.0"
     }
 }
 
 apply plugin: 'nebula.clojure'
+apply plugin: 'com.github.ben-manes.versions'
 
 group = 'org.nn'
 
@@ -35,25 +40,6 @@ sourceSets {
     }
 }
 
-clojureTest {
-    //classpath = sourceSets.test.runtimeClasspath
-    classpath += files(
-            sourceSets.main.resources.srcDirs,
-            sourceSets.test.resources.srcDirs
-    )
-    outputDir = sourceSets.main.output.classesDirs.files.find {
-        it.path.contains('clojure') || it.path.contains('java')
-    }
-}
-//compileClojure.dependsOn compileJava
-compileClojure {
-    warnOnReflection = true
-    aotCompile = true
-    destinationDir = sourceSets.main.output.classesDirs.files.find {
-        it.path.contains('clojure') || it.path.contains('java')
-    }
-}
-
 repositories {
     jcenter()
     mavenCentral()
@@ -61,12 +47,42 @@ repositories {
 }
 
 dependencies {
-    compile 'org.clojure:clojure:1.10.0'
+    implementation 'org.clojure:clojure:1.10.1'
 
-    compile 'net.mikera:core.matrix:0.62.0'
-    compile 'net.mikera:vectorz-clj:0.48.0'
+    implementation 'net.mikera:core.matrix:0.62.0'
+    implementation 'net.mikera:vectorz-clj:0.48.0'
 
-    compile 'org.clojure:test.check:0.9.0'
+    testImplementation 'org.clojure:test.check:0.10.0'
+}
+
+compileClojure {
+    def cpJarFile = new File(new File(project.buildDir, "cpjars"), "main_ClasspathJar.jar")
+    cpJarFile.delete()
+    ManifestUtil.prepareClasspathJar(cpJarFile, sourceSets.main.compileClasspath)
+    classpath = cpJarFile
+
+    warnOnReflection = true
+    aotCompile = true
+    destinationDir = sourceSets.main.output.classesDirs.files.find {
+        it.path.contains('clojure') || it.path.contains('java')
+    }
+}
+
+clojureTest {
+    def cpJarFile = new File(new File(project.buildDir, "cpjars"), "test_ClasspathJar.jar")
+    cpJarFile.delete()
+    ManifestUtil.prepareClasspathJar(cpJarFile,
+            sourceSets.test.runtimeClasspath
+                    + sourceSets.main.compileClasspath
+                    + files(sourceSets.main.java.srcDirs,
+                    sourceSets.main.resources.srcDirs,
+                    sourceSets.test.resources.srcDirs))
+    classpath = cpJarFile
+
+    outputDir = new File(project.buildDir, "test")
+    jvmOptions =  {
+        ["-Xmx2048m", "-Dclojure.spec.skip-macros=true", "-Dclojure.compiler.direct-linking=true"]
+    }
 }
 
 uploadArchives {
@@ -76,5 +92,5 @@ uploadArchives {
 }
 
 wrapper {
-    gradleVersion = '5.3.1'
+    gradleVersion = '5.6.4'
 }
